@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - 'v*.*.*'  # Trigger on version tags (e.g., v1.0.0)
+      - 'V*.*.*'  # Also support uppercase V (e.g., V1.0.0)
+      - 'v*.*.*-windows'  # Windows-specific releases
+      - 'V*.*.*-windows'  # Windows-specific releases (uppercase)
   workflow_dispatch:  # Allow manual trigger
     inputs:
       version:
@@ -43,7 +46,7 @@ jobs:
           if ("${{ github.event.inputs.version }}" -ne "") {
             $version = "${{ github.event.inputs.version }}"
           } elseif ("${{ github.ref }}" -like "refs/tags/*") {
-            $version = "${{ github.ref }}" -replace '^refs/tags/v', ''
+            $version = "${{ github.ref }}" -replace '^refs/tags/[Vv]', ''
           } else {
             $content = Get-Content mole.ps1 -Raw
             if ($content -match '\$script:MOLE_VER\s*=\s*"([^"]+)"') {
