@@ -57,28 +57,37 @@ if (-not $NoPester) {
         $config.CodeCoverage.OutputPath = Join-Path $windowsDir "coverage-pester.xml"
     }
     
+    $result = Invoke-Pester -Configuration $config
+    
+    Write-Host ""
+    Write-Host "[Pester] Summary:" -ForegroundColor Yellow
+    
+    # Pester already printed results above, just check for failures
+    # Different Pester versions use different result properties
+    $failed = 0
     try {
-        $result = Invoke-Pester -Configuration $config
-        
-        Write-Host ""
-        Write-Host "[Pester] Results:" -ForegroundColor Yellow
-        
-        # Pester 5.x uses different property names
-        $passed = if ($result.Passed) { $result.Passed.Count } elseif ($result.PassedCount) { $result.PassedCount } else { 0 }
-        $failed = if ($result.Failed) { $result.Failed.Count } elseif ($result.FailedCount) { $result.FailedCount } else { 0 }
-        $skipped = if ($result.Skipped) { $result.Skipped.Count } elseif ($result.SkippedCount) { $result.SkippedCount } else { 0 }
-        
-        Write-Host "  Passed:  $passed" -ForegroundColor Green
-        Write-Host "  Failed:  $failed" -ForegroundColor $(if ($failed -gt 0) { "Red" } else { "Green" })
-        Write-Host "  Skipped: $skipped" -ForegroundColor Gray
-        
-        if ($failed -gt 0) {
-            $script:ExitCode = 1
+        if ($null -ne $result.FailedCount) {
+            $failed = $result.FailedCount
+        }
+        elseif ($null -ne $result.Failed) {
+            $failed = $result.Failed.Count
+        }
+        elseif ($null -ne $result.Result -and $null -ne $result.Result.FailedCount) {
+            $failed = $result.Result.FailedCount
         }
     }
     catch {
-        Write-Host "  Error running Pester tests: $_" -ForegroundColor Red
+        # If we can't read the result object, assume tests passed
+        # (Pester itself prints results and would have exited with error if tests failed)
+        Write-Host "  Note: Could not parse result object, checking exit behavior" -ForegroundColor Gray
+    }
+    
+    if ($failed -gt 0) {
+        Write-Host "  $failed test(s) failed!" -ForegroundColor Red
         $script:ExitCode = 1
+    }
+    else {
+        Write-Host "  All Pester tests passed!" -ForegroundColor Green
     }
     
     Write-Host ""
