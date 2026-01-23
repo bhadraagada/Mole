@@ -68,10 +68,34 @@ jobs:
             Write-Host "No test script found, skipping tests"
           }
       
-      - name: Build release artifacts
+      - name: Install WiX Toolset
+        shell: pwsh
+        run: |
+          Write-Host "Installing WiX Toolset..."
+          choco install wixtoolset -y
+          
+      - name: Install PS2EXE
+        shell: pwsh
+        run: |
+          Write-Host "Installing PS2EXE module..."
+          Install-Module -Name ps2exe -Force -Scope CurrentUser -SkipPublisherCheck
+      
+      - name: Build release artifacts (ZIP)
         shell: pwsh
         run: |
           & scripts\build-release.ps1 -Version ${{ steps.version.outputs.VERSION }}
+      
+      - name: Build MSI installer
+        shell: pwsh
+        run: |
+          & scripts\build-msi.ps1 -Version ${{ steps.version.outputs.VERSION }}
+        continue-on-error: true
+      
+      - name: Build standalone EXE
+        shell: pwsh
+        run: |
+          & scripts\build-exe.ps1 -Version ${{ steps.version.outputs.VERSION }}
+        continue-on-error: true
       
       - name: List release artifacts
         shell: pwsh
@@ -89,6 +113,20 @@ jobs:
           path: release/mole-${{ steps.version.outputs.VERSION }}-x64.zip
           if-no-files-found: error
       
+      - name: Upload MSI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mole-${{ steps.version.outputs.VERSION }}-x64-msi
+          path: release/mole-${{ steps.version.outputs.VERSION }}-x64.msi
+          if-no-files-found: ignore
+      
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mole-${{ steps.version.outputs.VERSION }}-x64-exe
+          path: release/mole-${{ steps.version.outputs.VERSION }}-x64.exe
+          if-no-files-found: ignore
+      
       - name: Upload checksums
         uses: actions/upload-artifact@v4
         with:
@@ -102,6 +140,8 @@ jobs:
         with:
           files: |
             release/mole-${{ steps.version.outputs.VERSION }}-x64.zip
+            release/mole-${{ steps.version.outputs.VERSION }}-x64.msi
+            release/mole-${{ steps.version.outputs.VERSION }}-x64.exe
             release/SHA256SUMS.txt
           draft: false
           prerelease: false
@@ -111,6 +151,13 @@ jobs:
             
             ### Installation
             
+            **MSI Installer (Recommended):**
+            ```powershell
+            # Download mole-${{ steps.version.outputs.VERSION }}-x64.msi
+            # Double-click to install, or:
+            msiexec /i mole-${{ steps.version.outputs.VERSION }}-x64.msi
+            ```
+            
             **Portable ZIP:**
             ```powershell
             # Download and extract
@@ -119,6 +166,13 @@ jobs:
             # Run installer
             cd C:\mole
             .\install.ps1
+            ```
+            
+            **Standalone EXE:**
+            ```powershell
+            # Download mole-${{ steps.version.outputs.VERSION }}-x64.exe
+            # Run directly (requires PowerShell)
+            .\mole-${{ steps.version.outputs.VERSION }}-x64.exe
             ```
             
             **WinGet (Coming Soon):**
@@ -138,11 +192,13 @@ jobs:
             
             ### Verification
             
-            Verify the download integrity:
+            Verify the download integrity using SHA256SUMS.txt:
             ```powershell
-            # Download SHA256SUMS.txt
-            # Then verify:
-            (Get-FileHash mole-${{ steps.version.outputs.VERSION }}-x64.zip).Hash -eq (Get-Content SHA256SUMS.txt | Select-String "mole-${{ steps.version.outputs.VERSION }}-x64.zip" | ForEach-Object { $_.Line.Split()[0] })
+            # For ZIP
+            (Get-FileHash mole-${{ steps.version.outputs.VERSION }}-x64.zip).Hash -eq (Get-Content SHA256SUMS.txt | Select-String "zip" | ForEach-Object { $_.Line.Split()[0] })
+            
+            # For MSI
+            (Get-FileHash mole-${{ steps.version.outputs.VERSION }}-x64.msi).Hash -eq (Get-Content SHA256SUMS.txt | Select-String "msi" | ForEach-Object { $_.Line.Split()[0] })
             ```
             
             ### What's Changed
