@@ -62,11 +62,17 @@ if (-not $NoPester) {
         
         Write-Host ""
         Write-Host "[Pester] Results:" -ForegroundColor Yellow
-        Write-Host "  Passed:  $($result.PassedCount)" -ForegroundColor Green
-        Write-Host "  Failed:  $($result.FailedCount)" -ForegroundColor $(if ($result.FailedCount -gt 0) { "Red" } else { "Green" })
-        Write-Host "  Skipped: $($result.SkippedCount)" -ForegroundColor Gray
         
-        if ($result.FailedCount -gt 0) {
+        # Pester 5.x uses different property names
+        $passed = if ($result.Passed) { $result.Passed.Count } elseif ($result.PassedCount) { $result.PassedCount } else { 0 }
+        $failed = if ($result.Failed) { $result.Failed.Count } elseif ($result.FailedCount) { $result.FailedCount } else { 0 }
+        $skipped = if ($result.Skipped) { $result.Skipped.Count } elseif ($result.SkippedCount) { $result.SkippedCount } else { 0 }
+        
+        Write-Host "  Passed:  $passed" -ForegroundColor Green
+        Write-Host "  Failed:  $failed" -ForegroundColor $(if ($failed -gt 0) { "Red" } else { "Green" })
+        Write-Host "  Skipped: $skipped" -ForegroundColor Gray
+        
+        if ($failed -gt 0) {
             $script:ExitCode = 1
         }
     }
