@@ -157,7 +157,8 @@ $wixContent = Get-Content $wixSource -Raw
 $wixContent = $wixContent -replace 'Version="[^"]+"', "Version=`"$Version`""
 
 $tempWxs = Join-Path $releaseDir "mole-installer-temp.wxs"
-Set-Content -Path $tempWxs -Value $wixContent -Encoding UTF8
+# Use UTF8 without BOM to avoid XML parsing issues
+[System.IO.File]::WriteAllText($tempWxs, $wixContent, (New-Object System.Text.UTF8Encoding $false))
 
 Write-Host "  Version set to: $Version" -ForegroundColor Green
 Write-Host ""

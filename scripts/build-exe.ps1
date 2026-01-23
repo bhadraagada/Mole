@@ -167,7 +167,7 @@ Write-Host "  This may take a few minutes..." -ForegroundColor Gray
 Write-Host ""
 
 try {
-    # Build parameters
+    # Build parameters (only include non-null values)
     $ps2exeParams = @{
         inputFile = $launcherPath
         outputFile = $exePath
@@ -178,15 +178,10 @@ try {
         product = "Mole"
         copyright = "MIT License"
         version = $Version
-        iconFile = $null  # TODO: Add icon file
         requireAdmin = $false
         verbose = $true
     }
-    
-    # Remove null parameters
-    $ps2exeParams.GetEnumerator() | Where-Object { $_.Value -eq $null } | ForEach-Object {
-        $ps2exeParams.Remove($_.Key)
-    }
+    # Note: iconFile omitted (null) - add when icon is available
     
     # Build EXE
     Invoke-PS2EXE @ps2exeParams
