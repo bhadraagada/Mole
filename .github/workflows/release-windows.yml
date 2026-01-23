@@ -68,12 +68,7 @@ jobs:
             Write-Host "No test script found, skipping tests"
           }
       
-      - name: Install WiX Toolset
-        shell: pwsh
-        run: |
-          Write-Host "Installing WiX Toolset..."
-          choco install wixtoolset -y
-          
+
       - name: Install PS2EXE
         shell: pwsh
         run: |
@@ -85,12 +80,7 @@ jobs:
         run: |
           & scripts\build-release.ps1 -Version ${{ steps.version.outputs.VERSION }}
       
-      - name: Build MSI installer
-        shell: pwsh
-        run: |
-          & scripts\build-msi.ps1 -Version ${{ steps.version.outputs.VERSION }}
-        continue-on-error: true
-      
+
       - name: Build standalone EXE
         shell: pwsh
         run: |
@@ -113,13 +103,7 @@ jobs:
           path: release/mole-${{ steps.version.outputs.VERSION }}-x64.zip
           if-no-files-found: error
       
-      - name: Upload MSI artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: mole-${{ steps.version.outputs.VERSION }}-x64-msi
-          path: release/mole-${{ steps.version.outputs.VERSION }}-x64.msi
-          if-no-files-found: ignore
-      
+
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
         with:
@@ -140,69 +124,23 @@ jobs:
         with:
           files: |
             release/mole-${{ steps.version.outputs.VERSION }}-x64.zip
-            release/mole-${{ steps.version.outputs.VERSION }}-x64.msi
             release/mole-${{ steps.version.outputs.VERSION }}-x64.exe
             release/SHA256SUMS.txt
           draft: false
           prerelease: false
           generate_release_notes: true
           body: |
-            ## Mole v${{ steps.version.outputs.VERSION }} - Windows Release
+            ## Windows System Maintenance Toolkit
             
-            ### Installation
+            **Download:** `mole-${{ steps.version.outputs.VERSION }}-x64.zip` (portable) or `.exe` (launcher)
             
-            **MSI Installer (Recommended):**
+            **Install:**
             ```powershell
-            # Download mole-${{ steps.version.outputs.VERSION }}-x64.msi
-            # Double-click to install, or:
-            msiexec /i mole-${{ steps.version.outputs.VERSION }}-x64.msi
-            ```
-            
-            **Portable ZIP:**
-            ```powershell
-            # Download and extract
             Expand-Archive mole-${{ steps.version.outputs.VERSION }}-x64.zip -DestinationPath C:\mole
-            
-            # Run installer
             cd C:\mole
             .\install.ps1
             ```
             
-            **Standalone EXE:**
-            ```powershell
-            # Download mole-${{ steps.version.outputs.VERSION }}-x64.exe
-            # Run directly (requires PowerShell)
-            .\mole-${{ steps.version.outputs.VERSION }}-x64.exe
-            ```
-            
-            **WinGet (Coming Soon):**
-            ```powershell
-            winget install bhadraagada.mole
-            ```
-            
-            **Chocolatey (Coming Soon):**
-            ```powershell
-            choco install mole
-            ```
-            
-            **Scoop (Coming Soon):**
-            ```powershell
-            scoop install mole
-            ```
-            
-            ### Verification
-            
-            Verify the download integrity using SHA256SUMS.txt:
-            ```powershell
-            # For ZIP
-            (Get-FileHash mole-${{ steps.version.outputs.VERSION }}-x64.zip).Hash -eq (Get-Content SHA256SUMS.txt | Select-String "zip" | ForEach-Object { $_.Line.Split()[0] })
-            
-            # For MSI
-            (Get-FileHash mole-${{ steps.version.outputs.VERSION }}-x64.msi).Hash -eq (Get-Content SHA256SUMS.txt | Select-String "msi" | ForEach-Object { $_.Line.Split()[0] })
-            ```
-            
-            ### What's Changed
-            
-            See full changelog below.
+            **Verify:** Check SHA256SUMS.txt for file integrity.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
