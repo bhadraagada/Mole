@@ -1,0 +1,149 @@
+name: Build Windows Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Trigger on version tags (e.g., v1.0.0)
+  workflow_dispatch:  # Allow manual trigger
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write  # Required for creating releases
+
+jobs:
+  build-windows:
+    name: Build Windows Release Artifacts
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      
+      - name: Setup PowerShell
+        shell: pwsh
+        run: |
+          Write-Host "PowerShell Version: $($PSVersionTable.PSVersion)"
+          Write-Host "Go Version: $(go version)"
+      
+      - name: Extract version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.event.inputs.version }}" -ne "") {
+            $version = "${{ github.event.inputs.version }}"
+          } elseif ("${{ github.ref }}" -like "refs/tags/*") {
+            $version = "${{ github.ref }}" -replace '^refs/tags/v', ''
+          } else {
+            $content = Get-Content mole.ps1 -Raw
+            if ($content -match '\$script:MOLE_VER\s*=\s*"([^"]+)"') {
+              $version = $Matches[1]
+            } else {
+              Write-Error "Could not detect version"
+              exit 1
+            }
+          }
+          Write-Host "Version: $version"
+          "VERSION=$version" >> $env:GITHUB_OUTPUT
+      
+      - name: Run tests
+        shell: pwsh
+        run: |
+          if (Test-Path "scripts\test.ps1") {
+            & scripts\test.ps1
+          } else {
+            Write-Host "No test script found, skipping tests"
+          }
+      
+      - name: Build release artifacts
+        shell: pwsh
+        run: |
+          & scripts\build-release.ps1 -Version ${{ steps.version.outputs.VERSION }}
+      
+      - name: List release artifacts
+        shell: pwsh
+        run: |
+          Write-Host "Release artifacts:"
+          Get-ChildItem release\ | ForEach-Object {
+            $size = if ($_.PSIsContainer) { "-" } else { "$([math]::Round($_.Length / 1MB, 2)) MB" }
+            Write-Host "  $($_.Name) - $size"
+          }
+      
+      - name: Upload ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mole-${{ steps.version.outputs.VERSION }}-x64-zip
+          path: release/mole-${{ steps.version.outputs.VERSION }}-x64.zip
+          if-no-files-found: error
+      
+      - name: Upload checksums
+        uses: actions/upload-artifact@v4
+        with:
+          name: checksums
+          path: release/SHA256SUMS.txt
+          if-no-files-found: error
+      
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            release/mole-${{ steps.version.outputs.VERSION }}-x64.zip
+            release/SHA256SUMS.txt
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          body: |
+            ## Mole v${{ steps.version.outputs.VERSION }} - Windows Release
+            
+            ### Installation
+            
+            **Portable ZIP:**
+            ```powershell
+            # Download and extract
+            Expand-Archive mole-${{ steps.version.outputs.VERSION }}-x64.zip -DestinationPath C:\mole
+            
+            # Run installer
+            cd C:\mole
+            .\install.ps1
+            ```
+            
+            **WinGet (Coming Soon):**
+            ```powershell
+            winget install bhadraagada.mole
+            ```
+            
+            **Chocolatey (Coming Soon):**
+            ```powershell
+            choco install mole
+            ```
+            
+            **Scoop (Coming Soon):**
+            ```powershell
+            scoop install mole
+            ```
+            
+            ### Verification
+            
+            Verify the download integrity:
+            ```powershell
+            # Download SHA256SUMS.txt
+            # Then verify:
+            (Get-FileHash mole-${{ steps.version.outputs.VERSION }}-x64.zip).Hash -eq (Get-Content SHA256SUMS.txt | Select-String "mole-${{ steps.version.outputs.VERSION }}-x64.zip" | ForEach-Object { $_.Line.Split()[0] })
+            ```
+            
+            ### What's Changed
+            
+            See full changelog below.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
