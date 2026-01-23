@@ -153,12 +153,13 @@ Write-Host ""
 
 Write-Host "[2/5] Updating installer version..." -ForegroundColor Cyan
 
-$wixContent = Get-Content $wixSource -Raw
+# Read source file without BOM, replace version, write without BOM
+$wixContent = [System.IO.File]::ReadAllText($wixSource, [System.Text.UTF8Encoding]::new($false))
 $wixContent = $wixContent -replace 'Version="[^"]+"', "Version=`"$Version`""
 
 $tempWxs = Join-Path $releaseDir "mole-installer-temp.wxs"
-# Use UTF8 without BOM to avoid XML parsing issues
-[System.IO.File]::WriteAllText($tempWxs, $wixContent, (New-Object System.Text.UTF8Encoding $false))
+# Write as UTF8 without BOM
+[System.IO.File]::WriteAllText($tempWxs, $wixContent, [System.Text.UTF8Encoding]::new($false))
 
 Write-Host "  Version set to: $Version" -ForegroundColor Green
 Write-Host ""

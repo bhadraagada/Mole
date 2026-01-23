@@ -167,6 +167,13 @@ Write-Host "  This may take a few minutes..." -ForegroundColor Gray
 Write-Host ""
 
 try {
+    # Extract numeric version for ps2exe (requires n.n.n.n format)
+    # Remove non-numeric suffixes like "-windows"
+    $numericVersion = $Version -replace '[^0-9.].*$', ''
+    if ($numericVersion -notmatch '^\d+(\.\d+){0,3}$') {
+        $numericVersion = "1.0.0.0"
+    }
+    
     # Build parameters (only include non-null values)
     $ps2exeParams = @{
         inputFile = $launcherPath
@@ -177,7 +184,7 @@ try {
         company = "Mole Project"
         product = "Mole"
         copyright = "MIT License"
-        version = $Version
+        version = $numericVersion
         requireAdmin = $false
         verbose = $true
     }
